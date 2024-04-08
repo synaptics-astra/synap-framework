@@ -1,0 +1,22 @@
+Prerequirements
+---------------
+
+1. install cmake
+2. VSSDK installation
+
+
+Build steps
+-----------
+
+cd /path/to/vssdk/synap/framework/release
+mkdir build
+cd build
+cmake .. -G Ninja -DVSSDK_DIR=/path/to/vssdk -DCMAKE_BUILD_TYPE=Release
+ninja install
+
+
+Push binaries
+---------------------
+
+adb push install/lib/* /vendor/lib
+adb push install/bin/* /vendor/bin

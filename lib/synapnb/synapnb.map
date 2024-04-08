@@ -1,0 +1,4 @@
+LIBSYNAPNB_1.0 {
+	global: *9synaptics5synap*;
+	local: *;
+};

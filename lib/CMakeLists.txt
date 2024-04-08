@@ -1,0 +1,15 @@
+set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/synap)
+
+add_subdirectory(stb)
+add_subdirectory(miniz)
+add_subdirectory(nlohmann)
+add_subdirectory(synap_utils)
+add_subdirectory(synap_base)
+add_subdirectory(synap_app)
+
+if(CMAKE_CROSSCOMPILING OR ENABLE_SYNAP_DEVICE_SIMULATOR)
+    add_subdirectory(synapnb)
+    add_subdirectory(synap_img)
+    add_subdirectory(synap_preprocess)
+    add_subdirectory(synap_postprocess)
+endif()
