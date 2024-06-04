@@ -45,14 +45,66 @@
 
 #include <fstream>
 #include <future>
+#include "json.hpp"
 
 using namespace std;
+using json = nlohmann::ordered_json;
+static constexpr int json_dump_indent = 2;
 
 namespace synaptics {
 namespace synap {
 
+static void from_json(const json& j, Sublima::JsonHDRInfo& p)
+{
+    if (j.contains("type"))
+        j.at("type").get_to(p.type);
+
+    if (j.contains("PrimaryChromaticityR_X"))
+        j.at("PrimaryChromaticityR_X").get_to(p.PrimaryChromaticityR_X);
+    if (j.contains("PrimaryChromaticityR_Y"))
+        j.at("PrimaryChromaticityR_Y").get_to(p.PrimaryChromaticityR_Y);
+
+    if (j.contains("PrimaryChromaticityG_X"))
+        j.at("PrimaryChromaticityG_X").get_to(p.PrimaryChromaticityG_X);
+    if (j.contains("PrimaryChromaticityG_Y"))
+        j.at("PrimaryChromaticityG_Y").get_to(p.PrimaryChromaticityG_Y);
+
+    if (j.contains("PrimaryChromaticityB_X"))
+        j.at("PrimaryChromaticityB_X").get_to(p.PrimaryChromaticityB_X);
+    if (j.contains("PrimaryChromaticityB_Y"))
+        j.at("PrimaryChromaticityB_Y").get_to(p.PrimaryChromaticityB_Y);
+
+    if (j.contains("WhitePointChromaticity_X"))
+        j.at("WhitePointChromaticity_X").get_to(p.WhitePointChromaticity_X);
+    if (j.contains("WhitePointChromaticity_Y"))
+        j.at("WhitePointChromaticity_Y").get_to(p.WhitePointChromaticity_Y);
+
+    if (j.contains("LuminanceMax"))
+        j.at("LuminanceMax").get_to(p.LuminanceMax);
+    if (j.contains("LuminanceMin"))
+        j.at("LuminanceMin").get_to(p.LuminanceMin);
+
+    if (j.contains("MatrixCoefficients"))
+        j.at("MatrixCoefficients").get_to(p.MatrixCoefficients);
+    if (j.contains("TransferCharacteristics"))
+        j.at("TransferCharacteristics").get_to(p.TransferCharacteristics);
+    if (j.contains("ColorPrimaries"))
+        j.at("ColorPrimaries").get_to(p.ColorPrimaries);
+
+    if (j.contains("MaxCLL"))
+        j.at("MaxCLL").get_to(p.MaxCLL);
+    if (j.contains("MaxFALL"))
+        j.at("MaxFALL").get_to(p.MaxFALL);
+
+}
+
 
 struct Sublima::Private {
+    //
+    inline void to_nv15(uint16_t data0, uint16_t data1, uint16_t data2, uint16_t data3, uint8_t*& nv15);
+
+    void convert_nv15(const uint8_t* data, uint8_t* nv15, uint32_t count);
+
     // Read LUT2D from a CSV file
     static std::vector<uint16_t> load_lut(std::string file_path);
 
@@ -68,6 +120,9 @@ struct Sublima::Private {
     // Assign the input tensor with the Y, UV planes of the NV12 image and the previous median value
     // returns the median of the Y plane
     uint8_t assign_tensor(const uint8_t* nv12y, const uint8_t* nv12uv, uint16_t* data, uint32_t width, uint32_t height);
+
+    //
+    bool parse_hdrjson(const std::string& hdrjson);
     
     bool _hdr{true};
     Network _network;
@@ -75,6 +130,10 @@ struct Sublima::Private {
     static constexpr int k_lum_values = 256;
     std::vector<uint32_t> _histogram = std::vector<uint32_t>(k_lum_values);
     Sublima::Timings _timings{};
+    bool _only_y{false};
+    uint32_t line_pixels{};
+    Sublima::JsonHDRInfo _hdrinfo{};
+
 };
 
 
@@ -88,7 +147,9 @@ Sublima::~Sublima()
 }
 
 
-bool Sublima::init(const std::string& lut2d, const std::string& model, const std::string& meta) {
+bool Sublima::init(const std::string& lut2d,
+                   const std::string& model, const std::string& meta,
+                   const std::string& hdrjson) {
     if (lut2d == "-") {
         LOGI << "Sublima starting in SDR-only mode";
         d->_hdr = false;
@@ -109,7 +170,16 @@ bool Sublima::init(const std::string& lut2d, const std::string& model, const std
         return false;
     }
 
+    if (!hdrjson.empty()) {
+        d->parse_hdrjson(hdrjson);
+    }
+
     return true;
+}
+
+Sublima::JsonHDRInfo Sublima::hdrinfo()
+{
+    return d->_hdrinfo;
 }
 
 
@@ -121,6 +191,36 @@ bool Sublima::set_hdr(bool enable)
     }
     d->_hdr = enable;
     LOGI << "Sublima HDR: " << enable;
+    return true;
+}
+
+bool Sublima::set_only_y(bool enable)
+{
+    d->_only_y = enable;
+    return true;
+}
+
+bool Sublima::Private::parse_hdrjson(const std::string& hdrjson)
+{
+    if (!file_exists(hdrjson)) {
+        LOGE << "HDR Json Info file not found: " << hdrjson;
+        return false;
+    }
+
+    std::string info_string = file_read(hdrjson);
+    if (info_string.empty()) {
+        LOGE << "Failed to read info file: " << hdrjson;
+        return false;
+    }
+
+    try {
+        json j = json::parse(info_string);
+        j.get_to(_hdrinfo);
+    } catch (json::parse_error& e) {
+        LOGE << hdrjson << ": " << e.what();
+        return false;
+    }
+
     return true;
 }
 
@@ -146,6 +246,7 @@ vector<uint16_t> Sublima::Private::load_lut(string file_path)
     std::stringstream head(line);
     head >> lmin >> sep >> lmax;
     LOGV << "Sublima reading LUT2D file: " << file_path << " lmin:" << lmin << " lmax:" << lmax;
+
     if (sep != ',' || lmin > 50 || lmin < 0 || lmax < 200 || lmax >= k_lum_values || lmin >= lmax) {
         LOGE << "Sublima invalid LUT2D range";
         return {};
@@ -213,18 +314,21 @@ uint8_t Sublima::Private::assign_tensor(const uint8_t* nv12y, const uint8_t* nv1
     return median;
 }
 
-
-inline void to_nv15(uint16_t data0, uint16_t data1, uint16_t data2, uint16_t data3, uint8_t*& nv15)
+void Sublima::Private::to_nv15(uint16_t data0, uint16_t data1, uint16_t data2, uint16_t data3, uint8_t*& nv15)
 {
     *nv15++ = data0 & 0xff;
     *nv15++ = ((data0 >> 8) & 0x03) + ((data1 & 0x3f) << 2);
     *nv15++ = ((data1 >> 6) & 0x0f) + ((data2 & 0x0f) << 4);
     *nv15++ = ((data2 >> 4) & 0x3f) + ((data3 & 0x03) << 6);
     *nv15++ = (data3 >> 2) & 0xff;
+
+    line_pixels += 5;
+    line_pixels % 2400 == 0 ? nv15 += 32 : nv15;
 }
 
-static void convert_nv15(const uint8_t* data, uint8_t* nv15, uint32_t count)
+void Sublima::Private::convert_nv15(const uint8_t* data, uint8_t* nv15, uint32_t count)
 {
+    line_pixels = 0;
     const uint8_t* d = &data[0];
     const uint8_t* end = &data[count];
     while (d < end) {
@@ -240,6 +344,7 @@ static void convert_nv15(const uint8_t* data, uint8_t* nv15, uint32_t count)
 void Sublima::Private::convert_nchw_nv15(const uint16_t* data, uint8_t* nv15, uint32_t count)
 {
     Timer t;
+    line_pixels = 0;
     const uint16_t* u = &data[0];
     const uint16_t* v = &data[count / 2];
     const uint16_t* end = &data[count];
@@ -258,6 +363,7 @@ void Sublima::Private::convert_nchw_nv15(const uint16_t* data, uint8_t* nv15, ui
 void Sublima::Private::convert_lut_nv15(const uint8_t* data, uint8_t* nv15, uint32_t count, uint8_t median)
 {
     Timer t;
+    line_pixels = 0;
     const uint8_t* end = &data[count];
     while (data < end) {
         const uint16_t data0 = lut(*data++, median);
@@ -277,8 +383,11 @@ bool Sublima::process(const uint8_t* nv12y, const uint8_t* nv12uv, uint8_t* nv15
     const uint32_t total_pixels = width * height;
     if (!d->_hdr) {
         LOGV << "Sublima HDR not emabled, converting to NV15 only";
-        convert_nv15(nv12y, nv15y, total_pixels);
-        convert_nv15(nv12uv, nv15uv, total_pixels / 2);
+        d->convert_nv15(nv12y, nv15y, total_pixels);
+        d->convert_nv15(nv12uv, nv15uv, total_pixels / 2);
+
+        d->_timings.tot += tot.get();
+        d->_timings.cnt += 1;
         return true;
     }
 
@@ -308,7 +417,10 @@ bool Sublima::process(const uint8_t* nv12y, const uint8_t* nv12uv, uint8_t* nv15
         LOGE << "Sublima inference failed";
         return false;
     }
-    d->convert_nchw_nv15(static_cast<uint16_t*>(d->_network.outputs[0].data()), nv15uv, total_pixels / 2);
+
+    if (!d->_only_y) {
+        d->convert_nchw_nv15(static_cast<uint16_t*>(d->_network.outputs[0].data()), nv15uv, total_pixels / 2);
+    }
 
     d->_timings.tot += tot.get();
     d->_timings.cnt += 1;

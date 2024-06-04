@@ -52,7 +52,7 @@ using namespace synaptics::synap;
 #if __ANDROID__
 #define BASE_PATH "/vendor/firmware/models/image_classification/imagenet/"
 #else
-#define BASE_PATH "/usr/share/synap/models/"
+#define BASE_PATH "/usr/share/synap/models/image_classification/imagenet/"
 #endif
 
 int main(int argc, char** argv)

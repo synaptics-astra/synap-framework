@@ -37,11 +37,12 @@ set(name "synap_sublima")
 
 add_library(${name} STATIC src/sublima.cpp)
 
+# FIXME: double check why sublima cannot find synapnb headers
 target_include_directories(${name}
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc ${SYNAP_SYSROOT_INCLUDEDIR}
 )
 
-target_link_libraries(${name} PRIVATE synapnb)
+target_link_libraries(${name} PRIVATE synapnb nlohmann)
 
 if(ANDROID)
     target_link_libraries(${name} PRIVATE log)
@@ -50,3 +51,5 @@ endif()
 file(GLOB HEADERS inc/synap/*.hpp)
 set_target_properties(${name} PROPERTIES PUBLIC_HEADER "${HEADERS}")
 install(TARGETS ${name})
+
+install(FILES ${HEADERS} DESTINATION include/synap)

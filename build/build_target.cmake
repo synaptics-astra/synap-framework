@@ -148,6 +148,7 @@ function(build_target TARGET_NAME)
             USES_TERMINAL_CONFIGURE TRUE
             SOURCE_DIR ${TFLITE_DIR}
             CMAKE_ARGS ${tflite_args}
+            UPDATE_COMMAND ${CMAKE_COMMAND} -E touch <BINARY_DIR>/CMakeCache.txt
             BUILD_COMMAND ${CMAKE_COMMAND} --build  <BINARY_DIR> --config $<CONFIG>
             # benchmark_model is not build by default
             COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG> --target benchmark_model
@@ -193,16 +194,23 @@ function(build_target TARGET_NAME)
         SOURCE_DIR ${FRAMEWORK_DIR}
         CMAKE_CACHE_ARGS ${framework_ARGS})
 
-    # framework_tools depends on opencv, doesn't build if opencv is not enabled
-    if(BUILD_FRAMEWORK_TOOLS AND BUILD_OPENCV)
+    # framework_tools builds opencv dependent modules if its build enable
+    # otherwise only build modules without opencv
+    if(BUILD_FRAMEWORK_TOOLS AND EXISTS ${FRAMEWORK_DIR}/tools)
         set(tools_ARGS ${SYNAP_ARGS}
             -DVSSDK_DIR:PATH=${VSSDK_DIR}
             -DENABLE_OPENCV:STRING=${BUILD_OPENCV}
         )
+
+        set(framework_tools_deps framework-${TARGET_NAME})
+        if(BUILD_OPENCV)
+            list(APPEND framework_tools_deps opencv-${TARGET_NAME})
+        endif()
+
         ExternalProject_Add(framework-tools-${TARGET_NAME}
             BUILD_ALWAYS TRUE
             USES_TERMINAL_BUILD true
-            DEPENDS framework-${TARGET_NAME} opencv-${TARGET_NAME}
+            DEPENDS ${framework_tools_deps}
             SOURCE_DIR ${FRAMEWORK_DIR}/tools
             CMAKE_CACHE_ARGS ${tools_ARGS})
     endif()

@@ -45,6 +45,9 @@ namespace synap {
 
 using json = nlohmann::json;
 
+LabelInfo::LabelInfo()
+{
+}
 
 LabelInfo::LabelInfo(const std::string& filename)
 {
@@ -78,10 +81,22 @@ bool LabelInfo::init(const std::string& filename)
 }
 
 
+bool LabelInfo::init(const char* filename)
+{
+    return init(string(filename));
+}
+
+
 const std::string& LabelInfo::label(int class_index) const
 {
     static const string no_label;
     return class_index >= 0 && class_index < _labels.size() ? _labels[class_index] : no_label;
+}
+
+
+const char* LabelInfo::label_ptr(int class_index) const
+{
+    return label(class_index).c_str();
 }
 
 

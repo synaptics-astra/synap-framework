@@ -53,9 +53,12 @@ int main(int argc, char **argv)
     ArgParser args(argc, argv, "Sublima image processing sample program", "[options] image-file");
     string model = args.get("-m", "<file> Model file (.synap or legacy .nb)");
     string nb = args.get("--nb", "<file> Deprecated, same as -m");
-    string meta = args.get("--meta", "<file> json meta file for legacy .nb models");
-    string lut = args.get("--lut", "<file> csv lookup table file", "lut.csv");
+    string meta = args.get("--meta", "<file> Json meta file for legacy .nb models");
+    string lut = args.get("--lut", "<file> CSV lookup table file", "lut.csv");
+    string hdrjson = args.get("--hdr-info", "<file> Hdr json parameter file", "hdrinfo.json");
     string out_dir = args.get("--out-dir", "<dir> Output directory");
+    bool hdr_disable = args.has("--hdr-off", "Disable hdr processing, it is enabled by default");
+    bool only_y = args.has("--only-y", "Only Y channel processing, no UV conversion");
     int r = stoi(args.get("-r", "<n> Repeat count", "1"));
 
     args.check_help("--help", "Show help");
@@ -74,9 +77,19 @@ int main(int argc, char **argv)
 
     // Init Sublima processor
     Sublima sublima;
-    if (!sublima.init(lut, model, meta)) {
+    if (!sublima.init(lut, model, meta, hdrjson)) {
         cerr << "Failed to initialize Sublima" << endl;
         return 1;
+    }
+
+    if (hdr_disable) {
+        sublima.set_hdr(false);
+	cout << "disable hdr" << endl;
+    }
+
+    if (only_y) {
+        sublima.set_only_y(true);
+	cout << "only Y processing, no UV model processing" << endl;
     }
 
     // Perform conversion

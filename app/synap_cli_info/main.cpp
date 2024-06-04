@@ -129,7 +129,7 @@ int main(int argc, char** argv)
 
     json j;
     try {
-        j = json::parse(uncompressed);
+        j = json::parse(uncompressed.data());
     } catch (json::parse_error& e) {
         cerr << "id " << archive_id << " is not a json file" << endl;
         // TODO: maybe tf parser

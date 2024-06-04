@@ -6,7 +6,7 @@ project("synap_jni")
 if(EXISTS ${CMAKE_SOURCE_DIR}/../../../../synap_device/CMakeLists.txt)
     set(SYNAP_DEVICE_DIR ${CMAKE_SOURCE_DIR}/../../../../synap_device/)
 else()
-    set(SYNAP_DEVICE_DIR ${CMAKE_SOURCE_DIR}/../../../../../external/vsi_npu_driver/synap/user/)
+    set(SYNAP_DEVICE_DIR ${CMAKE_SOURCE_DIR}/../../../../../npu_driver/lib/synap_device/)
 endif()
 
 add_subdirectory(${SYNAP_DEVICE_DIR} synap_device)

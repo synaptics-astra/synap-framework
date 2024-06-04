@@ -50,14 +50,41 @@ public:
     Sublima();
     ~Sublima();
 
+    struct JsonHDRInfo {
+        uint32_t type{1}; // 1: HDR10, 2: HLG
+        float PrimaryChromaticityR_X;
+        float PrimaryChromaticityR_Y;
+        float PrimaryChromaticityG_X;
+        float PrimaryChromaticityG_Y;
+        float PrimaryChromaticityB_X;
+        float PrimaryChromaticityB_Y;
+        float WhitePointChromaticity_X;
+        float WhitePointChromaticity_Y;
+        float LuminanceMax;
+        float LuminanceMin;
+
+        uint32_t MatrixCoefficients;
+        uint32_t TransferCharacteristics;
+        uint32_t ColorPrimaries;
+
+        uint32_t MaxCLL;
+        uint32_t MaxFALL;
+    };
+
     /// Initialize the Sublima HDR processing
     /// @param lut2d: LUT2D file path (the LUT file is in CSV format)
     /// @param model: model file path
     /// @param meta: meta file path (deprecated, will be removed)
-    /// @param min_val: minimum value for the LUT2D
-    /// @param max_val: maximum value for the LUT2D
+    /// @param hdrjson: hdr json parameters file path
     /// @return true if initialization was successful
-    bool init(const std::string& lut2d, const std::string& model, const std::string& meta = "");
+    bool init(const std::string& lut2d,
+              const std::string& model, const std::string& meta = "",
+              const std::string& hdrjson = "");
+
+
+    /// Get hdr parameter information
+    /// @return hdr parameter
+    JsonHDRInfo hdrinfo();
     
     /// Process the NV12 image to convert it to HDR
     /// @param nv12y: Y plane of the NV12 image
@@ -73,6 +100,11 @@ public:
     /// @param enable: true to enable HDR output, false to just convert to NV15
     /// @return true if success
     bool set_hdr(bool enable);
+
+    /// Enable/Disable UV Conversion
+    /// @param enable: true to disable UV conversion, only Y channel will be processed
+    /// @return true if success
+    bool set_only_y(bool enable);
 
     /// Get total processing timings (for debug)
     struct Timings {

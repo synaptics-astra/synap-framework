@@ -35,7 +35,7 @@ bool PredictorTFLite::load_model(const void* model, size_t size, NetworkMetadata
     }
 
     const bool enable_gpu = format_parse::get_bool(meta->delegate, "gpu");
-    bool use_xnnpack = format_parse::get_bool(meta->delegate, "use_xnnpack", true);
+    bool use_xnnpack = format_parse::get_bool(meta->delegate, "use_xnnpack", !enable_gpu);
     if (enable_gpu && use_xnnpack) {
         use_xnnpack = false;
         LOGE << "TFLite GPU and XNNPACK delegates cannot be used together, will use GPU";

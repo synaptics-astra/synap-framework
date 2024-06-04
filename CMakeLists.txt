@@ -122,9 +122,9 @@ endif()
 
 add_subdirectory(app)
 
-option(ENABLE_SUBLIMA "Enable B<>COM Sublima support" OFF)
+option(ENABLE_SUBLIMA "Enable B<>COM Sublima support" ON)
 
-if(ENABLE_SUBLIMA)
+if(ENABLE_SUBLIMA AND CMAKE_CROSSCOMPILING)
     add_subdirectory(sublima/lib)
     add_subdirectory(sublima/cli)
 endif()
