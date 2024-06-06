@@ -44,7 +44,7 @@ namespace synap {
 
 Allocator::Memory AllocatorMalloc::alloc(size_t size)
 {
-    void* ptr = malloc(size);
+    void* ptr = aligned_alloc(64, Allocator::align(size, 64));
     LOGV << "Allocated memory of size: " << size << " at address: " << ptr;
     // Use an invalid BID since this memory doesn't come from synap allocator
     return Memory{ptr, 1, -1, 0, 0, (uint32_t)size};
